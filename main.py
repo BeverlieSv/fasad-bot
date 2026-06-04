@@ -1,8 +1,12 @@
+import os
 import re
-from telegram import Update
-from telegram.ext import Application, MessageHandler, filters, ContextTypes
+import asyncio
+from aiogram import Bot, Dispatcher, types
 
-TOKEN = "8663076252:AAHsYT1rvFbn-5KHoZn4WJJi8bU5Cjbdlhw"
+TOKEN = os.getenv("TOKEN")
+
+bot = Bot(token=TOKEN)
+dp = Dispatcher()
 
 # ===== ЦЕНЫ =====
 PROFILE = 400
@@ -23,18 +27,86 @@ HINGE_HOLE = 50
 ASSEMBLY = 300
 
 
-def parse(text):
+def parse(text: str):
     text = text.lower()
 
-    # размер
     size = re.findall(r"(\d+)\s*[xх]\s*(\d+)", text)
     if not size:
         return None
+
     w, h = map(float, size[0])
 
-    # количество
     qty = 1
-    qty_match = re.findall(r"(\d+)\s*шт", text)
+    q = re.findall(r"(\d+)\s*шт", text)
+    if q:
+        qty = int(q[0])
+
+    hinges = 0
+    hq = re.findall(r"(\d+)\s*пет", text)
+    if hq:
+        hinges = int(hq[0])
+
+    handle = True
+    if "без руч" in text:
+        handle = False
+
+    return w, h, qty, hinges, handle
+
+
+def calc(w, h, qty, hinges, handle):
+    perim = 2 * (w + h) / 1000
+    area = (w * h) / 1_000_000
+
+    glass = area * WASTE * GLASS
+    seal = perim * UPHOLSTER
+
+    if handle:
+        profile = (h / 1000) * HANDLE + (perim - h / 1000) * PROFILE
+    else:
+        profile = perim * PROFILE
+
+    hardware = (4 * ANGLE) + (16 * SCREW)
+
+    hinges_cost = hinges * HINGE_PRICE
+    hinge_screws = hinges * HINGE_SCREW
+
+    work = CUT + (hinges * HINGE_HOLE) + ASSEMBLY
+
+    one = glass + seal + profile + hardware + hinges_cost + hinge_screws + work
+
+    return one, one * qty
+
+
+@dp.message()
+async def handler(message: types.Message):
+    data = parse(message.text)
+
+    if not data:
+        await message.answer("❌ Формат: 2410x480 2шт 5 петель")
+        return
+
+    w, h, qty, hinges, handle = data
+    one, total = calc(w, h, qty, hinges, handle)
+
+    await message.answer(
+        f"""📦 ФАСАД КАЛЬКУЛЯТОР
+
+📏 {w} x {h}
+📦 {qty} шт
+🪛 {hinges} петель
+🚪 Ручка: {"Да" if handle else "Нет"}
+
+💰 1 шт: {round(one,2)} сом
+💰 ИТОГО: {round(total,2)} сом"""
+    )
+
+
+async def main():
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())    qty_match = re.findall(r"(\d+)\s*шт", text)
     if qty_match:
         qty = int(qty_match[0])
 
