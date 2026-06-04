@@ -2,7 +2,7 @@ import re
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
-TOKEN = "ВСТАВЬ_СЮДА_ТОКЕН"
+TOKEN = "8663076252:AAHsYT1rvFbn-5KHoZn4WJJi8bU5Cjbdlhw"
 
 # ===== ЦЕНЫ =====
 PROFILE = 400
